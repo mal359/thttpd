@@ -31,7 +31,6 @@
 
 #include <sys/param.h>
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/uio.h>
@@ -54,9 +53,6 @@ extern __typeof (signal) sigset;
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
-#ifdef TIME_WITH_SYS_TIME
-#include <time.h>
-#endif
 #include <unistd.h>
 
 #include "fdwatch.h"
@@ -534,7 +530,7 @@ main( int argc, char** argv )
 	    exit( 0 );
 	    }
 #ifdef HAVE_SETSID
-        (void) setsid();
+	(void) setsid();
 #endif /* HAVE_SETSID */
 #endif /* HAVE_DAEMON */
 	}
@@ -544,7 +540,7 @@ main( int argc, char** argv )
 	** process.
 	*/
 #ifdef HAVE_SETSID
-        (void) setsid();
+	(void) setsid();
 #endif /* HAVE_SETSID */
 	}
 
@@ -590,7 +586,7 @@ main( int argc, char** argv )
 	    {
 	    if ( strncmp( logfile, cwd, strlen( cwd ) ) == 0 )
 		{
-		(void) ol_strcpy( logfile, &logfile[strlen( cwd ) - 1] );
+		(void) memmove( logfile, &logfile[strlen( cwd ) - 1], strlen(logfile) - (strlen( cwd ) - 1) + 1 );
 		/* (We already guaranteed that cwd ends with a slash, so leaving
 		** that slash in logfile makes it an absolute pathname within
 		** the chroot tree.)
@@ -717,7 +713,7 @@ main( int argc, char** argv )
 	    syslog( LOG_WARNING, "initgroups - %m" );
 #ifdef HAVE_SETLOGIN
 	/* Set login name. */
-        (void) setlogin( user );
+	(void) setlogin( user );
 #endif /* HAVE_SETLOGIN */
 	/* Set uid. */
 	if ( setuid( uid ) < 0 )
@@ -760,7 +756,7 @@ main( int argc, char** argv )
 	}
 
     /* Main loop. */
-    (void) gettimeofday( &tv, (struct timezone*) 0 );
+    tmr_prepare_timeval( &tv );
     while ( ( ! terminate ) || num_connects > 0 )
 	{
 	/* Do we need to re-open the log file? */
@@ -779,7 +775,7 @@ main( int argc, char** argv )
 	    syslog( LOG_ERR, "fdwatch - %m" );
 	    exit( 1 );
 	    }
-	(void) gettimeofday( &tv, (struct timezone*) 0 );
+	tmr_prepare_timeval( &tv );
 
 	if ( num_ready == 0 )
 	    {
@@ -1439,9 +1435,9 @@ read_throttlefile( char* tf )
 
 	/* Nuke any leading slashes in pattern. */
 	if ( pattern[0] == '/' )
-	    (void) ol_strcpy( pattern, &pattern[1] );
+	    (void) memmove( pattern, &pattern[1], strlen(pattern) );
 	while ( ( cp = strstr( pattern, "|/" ) ) != (char*) 0 )
-	    (void) ol_strcpy( cp + 1, cp + 2 );
+	    (void) memmove( cp + 1, cp + 2, strlen(cp) - 1 );
 
 	/* Check for room in throttles. */
 	if ( numthrottles >= maxthrottles )
@@ -1495,7 +1491,7 @@ shut_down( void )
 	if ( connects[cnum].hc != (httpd_conn*) 0 )
 	    {
 	    httpd_destroy_conn( connects[cnum].hc );
-	    free( (void*) connects[cnum].hc );
+	    free(connects[cnum].hc);
 	    --httpd_conn_count;
 	    connects[cnum].hc = (httpd_conn*) 0;
 	    }
@@ -1512,9 +1508,9 @@ shut_down( void )
 	}
     mmc_term();
     tmr_term();
-    free( (void*) connects );
+    free(connects);
     if ( throttles != (throttletab*) 0 )
-	free( (void*) throttles );
+	free(throttles);
     }
 
 

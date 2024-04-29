@@ -29,12 +29,6 @@
 #include "config.h"
 #include "version.h"
 
-#ifdef SHOW_SERVER_VERSION
-#define EXPOSED_SERVER_SOFTWARE SERVER_SOFTWARE
-#else /* SHOW_SERVER_VERSION */
-#define EXPOSED_SERVER_SOFTWARE "thttpd"
-#endif /* SHOW_SERVER_VERSION */
-
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -42,7 +36,6 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <time.h>
 #ifdef HAVE_MEMORY_H
 #include <memory.h>
 #endif /* HAVE_MEMORY_H */
@@ -87,6 +80,12 @@ extern __typeof (signal) sigset;
 #include "timers.h"
 #include "match.h"
 #include "tdate_parse.h"
+
+#ifdef SHOW_SERVER_VERSION
+#define EXPOSED_SERVER_SOFTWARE SERVER_SOFTWARE
+#else /* SHOW_SERVER_VERSION */
+#define EXPOSED_SERVER_SOFTWARE "thttpd"
+#endif /* SHOW_SERVER_VERSION */
 
 #ifndef STDIN_FILENO
 #define STDIN_FILENO 0
@@ -216,23 +215,16 @@ check_options( void )
 
 static void
 free_httpd_server( httpd_server* hs )
-    {
-    if ( hs->binding_hostname != (char*) 0 )
-	free( (void*) hs->binding_hostname );
-    if ( hs->cwd != (char*) 0 )
-	free( (void*) hs->cwd );
-    if ( hs->cgi_pattern != (char*) 0 )
-	free( (void*) hs->cgi_pattern );
-    if ( hs->charset != (char*) 0 )
-	free( (void*) hs->charset );
-    if ( hs->p3p != (char*) 0 )
-	free( (void*) hs->p3p );
-    if ( hs->url_pattern != (char*) 0 )
-	free( (void*) hs->url_pattern );
-    if ( hs->local_pattern != (char*) 0 )
-	free( (void*) hs->local_pattern );
-    free( (void*) hs );
-    }
+{
+    free(hs->binding_hostname);
+    free(hs->cwd);
+    free(hs->cgi_pattern);
+    free(hs->charset);
+    free(hs->p3p);
+    free(hs->url_pattern);
+    free(hs->local_pattern);
+    free(hs);
+}
 
 
 httpd_server*
@@ -303,7 +295,8 @@ httpd_initialize(
 	    }
 	/* Nuke any leading slashes in the cgi pattern. */
 	while ( ( cp = strstr( hs->cgi_pattern, "|/" ) ) != (char*) 0 )
-	    (void) ol_strcpy( cp + 1, cp + 2 );
+	    /* -2 for the offset, +1 for the '\0' */
+	    (void) memmove( cp + 1, cp + 2, strlen( cp ) - 1 );
 	}
     hs->cgi_limit = cgi_limit;
     hs->cgi_count = 0;
@@ -1246,9 +1239,9 @@ auth_check2( httpd_conn* hc, char* dirname  )
 	 strcmp( authinfo, prevuser ) == 0 )
 	{
 	/* Yes.  Check against the cached encrypted password. */
-        crypt_result = crypt( authpass, prevcryp );
-        if ( ! crypt_result )
-            return -1;
+	crypt_result = crypt( authpass, prevcryp );
+	if ( ! crypt_result )
+	    return -1;
 	if ( strcmp( crypt_result, prevcryp ) == 0 )
 	    {
 	    /* Ok! */
@@ -1298,9 +1291,9 @@ auth_check2( httpd_conn* hc, char* dirname  )
 	    /* Yes. */
 	    (void) fclose( fp );
 	    /* So is the password right? */
-            crypt_result = crypt( authpass, cryp );
-            if ( ! crypt_result )
-                return -1;
+	    crypt_result = crypt( authpass, cryp );
+	    if ( ! crypt_result )
+		return -1;
 	    if ( strcmp( crypt_result, cryp ) == 0 )
 		{
 		/* Ok! */
@@ -1680,7 +1673,8 @@ expand_symlinks( char* path, char** restP, int no_symlink_check, int tildemapped
 	/* Remove any leading slashes. */
 	while ( rest[0] == '/' )
 	    {
-	    (void) ol_strcpy( rest, &(rest[1]) );
+	    /*One more for '\0', one less for the eaten first*/
+	    (void) memmove( rest, &(rest[1]), strlen(rest) );
 	    --restlen;
 	    }
     r = rest;
@@ -2411,12 +2405,6 @@ httpd_parse_request( httpd_conn* hc )
 		    hc->keep_alive = 1;
 		}
 	    else if ( strncasecmp( buf, "X-Forwarded-For:", 16 ) == 0 )
-		{
-		cp = &buf[16];
-		cp += strspn( cp, " \t" );
-		inet_aton( cp, &(hc->client_addr.sa_in.sin_addr) );
-		}
-	    else if ( strncasecmp( buf, "X-Forwarded-For:", 16 ) == 0 )
 		{ // Use real IP if available 
 		cp = &buf[16];
 		cp += strspn( cp, " \t" );
@@ -2427,7 +2415,7 @@ httpd_parse_request( httpd_conn* hc )
 		else
 #endif
 		inet_aton( cp, &(hc->client_addr.sa_in.sin_addr) );
-	        }
+		}
 #ifdef LOG_UNKNOWN_HEADERS
 	    else if ( strncasecmp( buf, "Accept-Charset:", 15 ) == 0 ||
 		      strncasecmp( buf, "Accept-Language:", 16 ) == 0 ||
@@ -2539,8 +2527,11 @@ httpd_parse_request( httpd_conn* hc )
 	{
 	int i;
 	i = strlen( hc->origfilename ) - strlen( hc->pathinfo );
-	if ( i > 0 && strcmp( &hc->origfilename[i], hc->pathinfo ) == 0 )
-	    hc->origfilename[i - 1] = '\0';
+	if ( strcmp( &hc->origfilename[i], hc->pathinfo ) == 0 )
+	    {
+	    if ( i == 0 ) hc->origfilename[0] = '\0';
+	    else hc->origfilename[i - 1] = '\0';
+	    }
 	}
 
     /* If the expanded filename is an absolute path, check that it's still
@@ -2552,8 +2543,9 @@ httpd_parse_request( httpd_conn* hc )
 		 hc->expnfilename, hc->hs->cwd, strlen( hc->hs->cwd ) ) == 0 )
 	    {
 	    /* Elide the current directory. */
-	    (void) ol_strcpy(
-		hc->expnfilename, &hc->expnfilename[strlen( hc->hs->cwd )] );
+	    (void) memmove(
+		hc->expnfilename, &hc->expnfilename[strlen( hc->hs->cwd )], 
+			strlen(hc->expnfilename) - strlen( hc->hs->cwd ) + 1 );
 	    }
 #ifdef TILDE_MAP_2
 	else if ( hc->altdir[0] != '\0' &&
@@ -2650,15 +2642,15 @@ de_dotdot( char* file )
 
     /* Remove leading ./ and any /./ sequences. */
     while ( strncmp( file, "./", 2 ) == 0 )
-	(void) ol_strcpy( file, file + 2 );
+	(void) memmove( file, file + 2, strlen( file ) - 1 );
     while ( ( cp = strstr( file, "/./") ) != (char*) 0 )
-	(void) ol_strcpy( cp, cp + 2 );
+	(void) memmove( cp, cp + 2, strlen( cp ) - 1 );
 
     /* Alternate between removing leading ../ and removing xxx/../ */
     for (;;)
 	{
 	while ( strncmp( file, "../", 3 ) == 0 )
-	    (void) ol_strcpy( file, file + 3 );
+	    (void) memmove( file, file + 3, strlen( file ) - 2 );
 	cp = strstr( file, "/../" );
 	if ( cp == (char*) 0 )
 	    break;
@@ -2699,28 +2691,27 @@ httpd_close_conn( httpd_conn* hc, struct timeval* nowP )
 
 void
 httpd_destroy_conn( httpd_conn* hc )
-    {
-    if ( hc->initialized )
-	{
-	free( (void*) hc->read_buf );
-	free( (void*) hc->decodedurl );
-	free( (void*) hc->origfilename );
-	free( (void*) hc->expnfilename );
-	free( (void*) hc->encodings );
-	free( (void*) hc->pathinfo );
-	free( (void*) hc->query );
-	free( (void*) hc->accept );
-	free( (void*) hc->accepte );
-	free( (void*) hc->reqhost );
-	free( (void*) hc->hostdir );
-	free( (void*) hc->remoteuser );
-	free( (void*) hc->response );
+{
+    if (hc->initialized) {
+	free(hc->read_buf);
+	free(hc->decodedurl);
+	free(hc->origfilename);
+	free(hc->expnfilename);
+	free(hc->encodings);
+	free(hc->pathinfo);
+	free(hc->query);
+	free(hc->accept);
+	free(hc->accepte);
+	free(hc->reqhost);
+	free(hc->hostdir);
+	free(hc->remoteuser);
+	free(hc->response);
 #ifdef TILDE_MAP_2
-	free( (void*) hc->altdir );
+	free(hc->altdir);
 #endif /* TILDE_MAP_2 */
 	hc->initialized = 0;
-	}
     }
+}
 
 
 struct mime_entry {
@@ -2788,20 +2779,18 @@ figure_mime( httpd_conn* hc )
     size_t ext_len, encodings_len;
     int i, top, bot, mid;
     int r;
-    char* default_type = "text/plain; charset=%s";
+    char* default_type = "application/octet-stream";
 
     /* Peel off encoding extensions until there aren't any more. */
     n_me_indexes = 0;
+    hc->type = default_type;
     for ( prev_dot = &hc->expnfilename[strlen(hc->expnfilename)]; ; prev_dot = dot )
 	{
 	for ( dot = prev_dot - 1; dot >= hc->expnfilename && *dot != '.'; --dot )
 	    ;
 	if ( dot < hc->expnfilename )
 	    {
-	    /* No dot found.  No more encoding extensions, and no type
-	    ** extension either.
-	    */
-	    hc->type = default_type;
+	    /* No dot found.  No more extensions.  */
 	    goto done;
 	    }
 	ext = dot + 1;
@@ -2818,38 +2807,32 @@ figure_mime( httpd_conn* hc )
 		    me_indexes[n_me_indexes] = i;
 		    ++n_me_indexes;
 		    }
-		goto next;
+		break;
 		}
 	    }
-	/* No encoding extension found.  Break and look for a type extension. */
-	break;
-
-	next: ;
+        /* Binary search for a matching type extension. */
+        top = n_typ_tab - 1;
+        bot = 0;
+        while ( top >= bot )
+            {
+            mid = ( top + bot ) / 2;
+            r = strncasecmp( ext, typ_tab[mid].ext, ext_len );
+            if ( r < 0 )
+                top = mid - 1;
+            else if ( r > 0 )
+                bot = mid + 1;
+            else
+                if ( ext_len < typ_tab[mid].ext_len )
+                    top = mid - 1;
+                else if ( ext_len > typ_tab[mid].ext_len )
+                    bot = mid + 1;
+                else
+                    {
+                    hc->type = typ_tab[mid].val;
+                    goto done;
+                    }
+            }
 	}
-
-    /* Binary search for a matching type extension. */
-    top = n_typ_tab - 1;
-    bot = 0;
-    while ( top >= bot )
-	{
-	mid = ( top + bot ) / 2;
-	r = strncasecmp( ext, typ_tab[mid].ext, ext_len );
-	if ( r < 0 )
-	    top = mid - 1;
-	else if ( r > 0 )
-	    bot = mid + 1;
-	else
-	    if ( ext_len < typ_tab[mid].ext_len )
-		top = mid - 1;
-	    else if ( ext_len > typ_tab[mid].ext_len )
-		bot = mid + 1;
-	    else
-		{
-		hc->type = typ_tab[mid].val;
-		goto done;
-		}
-	}
-    hc->type = default_type;
 
     done:
 
@@ -3532,7 +3515,7 @@ cgi_interpose_output( httpd_conn* hc, int rfd )
 	cp += strcspn( cp, " \t" );
 	status = atoi( cp );
 	}
-    if ( ( cp = strstr( headers, "Location:" ) ) != (char*) 0 &&
+    else if ( ( cp = strstr( headers, "Location:" ) ) != (char*) 0 &&
 	 cp < br &&
 	 ( cp == headers || *(cp-1) == '\012' ) )
 	status = 302;
@@ -4517,7 +4500,7 @@ httpd_ntoa( httpd_sockaddr* saP )
 	}
     else if ( IN6_IS_ADDR_V4MAPPED( &saP->sa_in6.sin6_addr ) && strncmp( str, "::ffff:", 7 ) == 0 )
 	/* Elide IPv6ish prefix for IPv4 addresses. */
-	(void) ol_strcpy( str, &str[7] );
+	(void) memmove( str, &str[7], strlen( str ) - 6 );
 
     return str;
 

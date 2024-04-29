@@ -43,7 +43,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-
 #define LINK "public_html"
 
 static char* argv0;

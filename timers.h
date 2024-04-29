@@ -29,6 +29,7 @@
 #define _TIMERS_H_
 
 #include <sys/time.h>
+#include <time.h>
 
 #ifndef INFTIM
 #define INFTIM -1
@@ -105,5 +106,8 @@ void tmr_term( void );
 
 /* Generate debugging statistics syslog message. */
 void tmr_logstats( long secs );
+
+/* Fill timeval structure for further usage by the package. */
+extern void tmr_prepare_timeval( struct timeval *tv );
 
 #endif /* _TIMERS_H_ */

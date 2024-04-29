@@ -69,7 +69,7 @@ htpasswd.o:	htpasswd.c ../config.h
 install:	all
 	rm -f $(SBINDIR)/makeweb $(SBINDIR)/htpasswd $(SBINDIR)/syslogtocern
 	cp makeweb $(BINDIR)/makeweb
-	chgrp $(WEBGROUP) $(BINDIR)/makeweb
+	-chgrp $(WEBGROUP) $(BINDIR)/makeweb
 	chmod 2755 $(BINDIR)/makeweb
 	cp htpasswd $(BINDIR)/htpasswd
 	cp syslogtocern $(SBINDIR)/syslogtocern

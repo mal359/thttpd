@@ -6,8 +6,10 @@ AC_CANONICAL_SYSTEM
 
 AC_PROG_CC
 
-V_CCOPT="-O"
-if test "$GCC" = yes ; then
+if test "x$V_CCOPT" = "x"; then
+  V_CCOPT="-O"
+
+  if test "$GCC" = yes ; then
 	AC_MSG_CHECKING(gcc version)
 	AC_CACHE_VAL(ac_cv_lbl_gcc_vers,
 	    ac_cv_lbl_gcc_vers=`$CC -dumpversion 2>&1 | \
@@ -16,6 +18,7 @@ if test "$GCC" = yes ; then
 	if test "$ac_cv_lbl_gcc_vers" -gt 1 ; then
 		V_CCOPT="-O2"
 	fi
+  fi
 fi
 if test -f .devel ; then
 	V_CCOPT="-g $V_CCOPT -ansi -pedantic -U__STRICT_ANSI__ -Wall -Wpointer-arith -Wshadow -Wcast-qual -Wcast-align -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wno-long-long"

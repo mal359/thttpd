@@ -57,17 +57,7 @@
 ** as a security measure that's how you do it, just don't define any
 ** pattern here and don't run with the -c flag.
 */
-#ifdef notdef
-/* Some sample patterns.  Allow programs only in one central directory: */
-#define CGI_PATTERN "/cgi-bin/*"
-/* Allow programs in a central directory, or anywhere in a trusted
-** user's tree: */
-#define CGI_PATTERN "/cgi-bin/*|/jef/**"
-/* Allow any program ending with a .cgi: */
-#define CGI_PATTERN "**.cgi"
-/* When virtual hosting, enable the central directory on every host: */
-#define CGI_PATTERN "/*/cgi-bin/*"
-#endif
+#define CGI_PATTERN "/cgi-bin/*|**.cgi"
 
 /* CONFIGURE: How many seconds to allow CGI programs to run before killing
 ** them.  This is in case someone writes a CGI program that goes into an
@@ -75,7 +65,7 @@
 ** or whatever.  If you don't want any limit, comment this out, but that's
 ** probably a really bad idea.
 */
-#define CGI_TIMELIMIT 30
+#define CGI_TIMELIMIT 60
 
 /* CONFIGURE: Maximum number of simultaneous CGI programs allowed.
 ** If this many are already running, then attempts to run more will
@@ -123,8 +113,8 @@
 ** You can also leave both options undefined, and thttpd will not do
 ** anything special about tildes.  Enabling both options is an error.
 */
-#ifdef notdef
 #define TILDE_MAP_1 "users"
+#ifdef notdef
 #define TILDE_MAP_2 "public_html"
 #endif
 
@@ -185,9 +175,7 @@
 ** measure, to prevent inadvertant exposure by accidentally running without -r.
 ** You can still disable it at runtime with the -nor flag.
 */
-#ifdef notdef
 #define ALWAYS_CHROOT
-#endif
 
 /* CONFIGURE: Define this if you want to always do virtual hosting, without
 ** having to give the -v command line flag.  You can still disable it at
@@ -276,7 +264,7 @@
 
 /* CONFIGURE: $PATH to use for CGI programs.
 */
-#define CGI_PATH "/usr/local/bin:/usr/ucb:/bin:/usr/bin"
+#define CGI_PATH "/bin:/usr/bin:/usr/local/bin:/opt/bin"
 
 /* CONFIGURE: If defined, $LD_LIBRARY_PATH to use for CGI programs.
 */
@@ -327,7 +315,7 @@
 /* CONFIGURE: A list of index filenames to check.  The files are searched
 ** for in this order.
 */
-#define INDEX_NAMES "index.html", "index.htm", "index.xhtml", "index.xht", "Default.htm", "index.cgi"
+#define INDEX_NAMES "index.html", "index.htm", "index.xhtml", "index.xht", "index.cgi"
 
 /* CONFIGURE: If this is defined then thttpd will automatically generate
 ** index pages for directories that don't have an explicit index file.

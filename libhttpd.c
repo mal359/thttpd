@@ -1792,7 +1792,7 @@ expand_symlinks( char* path, char** restP, int no_symlink_check, int tildemapped
 	/* Insert the link contents in front of the rest of the filename. */
 	if ( restlen != 0 )
 	    {
-	    (void) ol_strcpy( rest, r );
+	    (void) memmove(rest, r, strlen(r) + 1);
 	    httpd_realloc_str( &rest, &maxrest, restlen + linklen + 1 );
 	    for ( i = restlen; i >= 0; --i )
 		rest[i + linklen + 1] = rest[i];
@@ -2656,7 +2656,7 @@ de_dotdot( char* file )
 	    break;
 	for ( cp2 = cp - 1; cp2 >= file && *cp2 != '/'; --cp2 )
 	    continue;
-	(void) ol_strcpy( cp2 + 1, cp + 4 );
+	(void) memmove(cp2 + 1, cp + 4, strlen(cp + 4) + 1);
 	}
 
     /* Also elide any xxx/.. at the end. */

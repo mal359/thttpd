@@ -2,11 +2,17 @@
 .SH NAME
 makeweb - create user web directory
 .SH SYNOPSIS
-.B makeweb
+.B makeweb 
+[\fI -d webdir \fR]
 .SH DESCRIPTION
 .PP
 This program allows users to create their own web subdirectories off
 of the main web directory.
+.PP
+.TP
+\fB\-d\fR
+Specify the root directory for new user directories. The default directory
+is /var/www
 .SH "SEE ALSO
 thttpd(8)
 .SH AUTHOR

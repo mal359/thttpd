@@ -145,9 +145,6 @@ typedef struct {
     int conn_fd;
     int compression_type;
     char* file_address;
-#ifdef USE_SENDFILE
-    int file_fd;
-#endif
     } httpd_conn;
 
 /* Methods. */

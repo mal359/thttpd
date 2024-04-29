@@ -386,6 +386,4 @@
 */
 #define MIN_WOULDBLOCK_DELAY 100L
 
-#define USE_SENDFILE
-
 #endif /* _CONFIG_H_ */

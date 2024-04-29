@@ -340,9 +340,7 @@
 /* CONFIGURE: Whether to log unknown request headers.  Most sites will not
 ** want to log them, which will save them a bit of CPU time.
 */
-#ifdef notdef
 #define LOG_UNKNOWN_HEADERS
-#endif
 
 /* CONFIGURE: Whether to fflush() the log file after each request.  If
 ** this is turned off there's a slight savings in CPU cycles.

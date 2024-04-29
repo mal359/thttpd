@@ -198,6 +198,7 @@ static long long atoll( const char* str );
 */
 static int sub_process = 0;
 
+int compression_level;
 
 static void
 check_options( void )
@@ -626,6 +627,11 @@ send_mime( httpd_conn* hc, int status, char* title, char* encodings, char* extra
     int partial_content;
     int s100;
 
+    if ( status != 200 )
+        {
+            hc->compression_type = COMPRESSION_NONE;
+        }
+
     hc->status = status;
     hc->bytes_to_send = length;
     if ( hc->mime_flag )
@@ -640,6 +646,8 @@ send_mime( httpd_conn* hc, int status, char* title, char* encodings, char* extra
 	    partial_content = 1;
 	    hc->status = status = 206;
 	    title = ok206title;
+
+	    hc->compression_type = COMPRESSION_NONE;  /* probably some way to get around this... */
 	    }
 	else
 	    {
@@ -669,7 +677,15 @@ send_mime( httpd_conn* hc, int status, char* title, char* encodings, char* extra
 	if ( encodings[0] != '\0' )
 	    {
 	    (void) my_snprintf( buf, sizeof(buf),
-		"Content-Encoding: %s\015\012", encodings );
+		"Content-Encoding: %s%s\015\012",
+		encodings,
+		(hc->compression_type == COMPRESSION_GZIP) ? ", gzip" : "" );
+	    add_response( hc, buf );
+	    }
+	else if ( hc->compression_type == COMPRESSION_GZIP )
+	    {
+	    (void) my_snprintf( buf, sizeof(buf),
+	        "Content-Encoding: gzip\015\012" );
 	    add_response( hc, buf );
 	    }
 	if ( partial_content )
@@ -682,7 +698,8 @@ send_mime( httpd_conn* hc, int status, char* title, char* encodings, char* extra
 		(long long) ( hc->last_byte_index - hc->first_byte_index + 1 ) );
 	    add_response( hc, buf );
 	    }
-	else if ( length >= 0 )
+	else if ( ( length >= 0 ) &&
+	          ( hc->compression_type == COMPRESSION_NONE ) )
 	    {
 	    (void) my_snprintf( buf, sizeof(buf),
 		"Content-Length: %lld\015\012", (long long) length );
@@ -1792,6 +1809,7 @@ httpd_get_conn( httpd_server* hs, int listen_fd, httpd_conn* hc )
     hc->last_byte_index = -1;
     hc->keep_alive = 0;
     hc->should_linger = 0;
+    hc->compression_type = COMPRESSION_NONE;
     hc->file_address = (char*) 0;
     return GC_OK;
     }
@@ -2410,6 +2428,32 @@ httpd_parse_request( httpd_conn* hc )
 	    }
 	}
 
+    if ( ( hc->accepte != '\0' ) && ( compression_level > 0 ) )
+        {
+        /* check to see if the client has send a "gzip" accept-encoding */
+        char *gz_pos_info;
+        gz_pos_info = strstr( hc->accepte, "gzip" );
+        if ( gz_pos_info != (char *)0 )
+            {
+            char *f1, *f2;
+            f1 = strstr( (gz_pos_info + 4), "," );
+            f2 = strstr( (gz_pos_info + 4), "q=" );
+            /* if we have no "q="
+            or comma is before "q="
+            or ( no commas or "q=" is before the comma ) and q>0.0
+            */
+            if ( ( f2 == 0 ) ||
+                 ( f1 < f2 ) ||
+                 ( ( ( f1 == 0 ) || ( f2 < f1 ) ) &&
+                 ( strtof( f2 + 2, 0 ) > (float)0.0 ) )
+               )
+                {
+                hc->compression_type = COMPRESSION_GZIP;
+                }
+            }
+        }
+
+
     return 0;
     }
 
@@ -2751,6 +2795,9 @@ ls( httpd_conn* hc )
     time_t now;
     char* timestr;
     ClientData client_data;
+
+
+    hc->compression_type = COMPRESSION_NONE;
 
     dirp = opendir( hc->expnfilename );
     if ( dirp == (DIR*) 0 )
@@ -3642,6 +3689,52 @@ cgi( httpd_conn* hc )
 
 
 static int
+does_exist_compressed_alternate( httpd_conn* hc, char* temp_filename, struct stat* sb )
+    {
+    int rc = 0;
+
+    if ( stat( temp_filename, sb ) == 0 )
+        {
+        /* Is it world-readable or world-executable? */
+        if ( sb->st_mode & ( S_IROTH | S_IXOTH ) )
+            {
+            /* is it's timestamp later than the uncompressed file's */
+            if ( sb->st_mtime >= hc->sb.st_mtime )
+                {
+                /* verify compressed file's date/time/size is good wrt uncompressed */
+                int gz_is_okay = 0;
+                int fd = open( temp_filename, O_RDONLY );
+                if ( fd >= 0 )
+                    {
+                    char buffer[16];
+                    if ( read( fd, buffer, 8 ) == 8 )
+                      {
+                      if ( *(time_t*)(buffer + 4) >= hc->sb.st_mtime )
+                        {
+                        if ( lseek( fd, sb->st_size - 4, SEEK_SET ) == (sb->st_size - 4) )
+                          {
+                          if ( read( fd, buffer, 4 ) == 4 )
+                            {
+                            if ( *(off_t*)(buffer) == hc->sb.st_size )
+                              {
+                              rc = 1;
+                              }
+                            }
+                          }
+                        }
+                      }
+                  close( fd );
+                  }
+               else { /* internal gzip stuff doesn't match uncompressed file */ }
+               } else { /* compressed file is older than uncompressed */ }
+            } else { /* compressed file is not world readable */ }
+        } else { /* compressed file does not exist */ }
+
+    return rc;
+    }
+
+
+static int
 really_start_request( httpd_conn* hc, struct timeval* nowP )
     {
     static char* indexname;
@@ -3655,6 +3748,13 @@ really_start_request( httpd_conn* hc, struct timeval* nowP )
     size_t expnlen, indxlen;
     char* cp;
     char* pi;
+    static char *filename_with_gz = NULL;
+    static int filename_with_gz_size = 0;
+    int does_exist_compressed_alternate_flag;
+    struct stat alt_file_sb;
+    char *content_location_string = "";
+    static char *alt_header_str = (char *)NULL;
+    static int alt_header_str_size = 0;
 
     expnlen = strlen( hc->expnfilename );
 
@@ -3882,6 +3982,26 @@ really_start_request( httpd_conn* hc, struct timeval* nowP )
 
     figure_mime( hc );
 
+    /* setup filename_with_gz */
+    httpd_realloc_str( &filename_with_gz, &filename_with_gz_size, strlen( hc->expnfilename ) + 4 );
+    strcpy( filename_with_gz, hc->expnfilename );
+    strcat( filename_with_gz, ".gz" );
+    does_exist_compressed_alternate_flag = does_exist_compressed_alternate( hc, filename_with_gz, &alt_file_sb );
+
+    /* don't try to compress non-text files */
+    if ( strncmp( hc->type, "text/", 5 ) != 0 )
+        {
+        hc->compression_type = COMPRESSION_NONE;
+        }
+    else
+        {
+        /* don't try to compress really small things */
+        if ( hc->sb.st_size < 256 )
+            {
+            hc->compression_type = COMPRESSION_NONE;
+            }
+        }
+
     if ( hc->method == METHOD_HEAD )
 	{
 	send_mime(
@@ -3897,14 +4017,71 @@ really_start_request( httpd_conn* hc, struct timeval* nowP )
 	}
     else
 	{
-	hc->file_address = mmc_map( hc->expnfilename, &(hc->sb), nowP );
+
+	/* if it's already "encoded", don't try to gzip it. */
+	if ( hc->encodings[0] != '\0' )
+	    {
+	    hc->compression_type = COMPRESSION_NONE;
+	    }
+	else if ( hc->compression_type == COMPRESSION_GZIP )
+	    {
+	    if ( does_exist_compressed_alternate_flag )
+	        {
+		httpd_realloc_str( &hc->expnfilename, &hc->maxexpnfilename,
+		    strlen( filename_with_gz ) + 1 );
+		strcpy( hc->expnfilename, filename_with_gz );
+		hc->sb.st_size = alt_file_sb.st_size;
+		httpd_realloc_str( &hc->encodings, &hc->maxencodings, 5 );
+		strcat( hc->encodings, "gzip" );
+		hc->compression_type = COMPRESSION_NONE; /* so we don't try to compress it more */
+		content_location_string = strrchr( hc->expnfilename, '/' );
+		if ( content_location_string != NULL )
+		    {
+		    content_location_string++;
+		    }
+		else
+		    {
+		    content_location_string = hc->expnfilename;
+		    }
+
+		if ( *content_location_string != '\0' )  /* should never be '\0' */
+		    {
+		    httpd_realloc_str( &alt_header_str, &alt_header_str_size,
+		        strlen( content_location_string ) + 23 );
+	            if ( alt_header_str != (char *)NULL )
+		        {
+			my_snprintf( alt_header_str, alt_header_str_size, "Content-Location: %s\r\n",
+			content_location_string );
+			content_location_string = alt_header_str;
+			}
+	            else  /* ... that's bad */
+			{
+			    syslog(
+			        LOG_ERR, "out of memory reallocating a string to %d bytes",
+			        strlen( alt_header_str ) + strlen( content_location_string ) + 23 );
+			    exit( 1 );
+			}
+		    }
+		else { does_exist_compressed_alternate_flag = 0; }
+	        } else { /* internal gzip stuff doesn't match uncompressed file */ }
+	    } else { /* not even looking for compressed file */ }
+
+        if ( ( does_exist_compressed_alternate_flag ) &&
+	     ( hc->compression_type == COMPRESSION_GZIP ) )
+	    {
+	    hc->file_address = mmc_map( hc->expnfilename, &alt_file_sb, nowP );
+	    }
+	else
+            {
+	    hc->file_address = mmc_map( hc->expnfilename, &(hc->sb), nowP );
+	    }
 	if ( hc->file_address == (char*) 0 )
 	    {
 	    httpd_send_err( hc, 500, err500title, "", err500form, hc->encodedurl );
 	    return -1;
 	    }
 	send_mime(
-	    hc, 200, ok200title, hc->encodings, "", hc->type, hc->sb.st_size,
+	    hc, 200, ok200title, hc->encodings, content_location_string, hc->type, hc->sb.st_size,
 	    hc->sb.st_mtime );
 	}
 

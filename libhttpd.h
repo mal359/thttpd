@@ -146,6 +146,7 @@ typedef struct {
     int should_linger;
     struct stat sb;
     int conn_fd;
+    int compression_type;
     char* file_address;
     } httpd_conn;
 
@@ -219,6 +220,14 @@ int httpd_got_request( httpd_conn* hc );
 #define GR_NO_REQUEST 0
 #define GR_GOT_REQUEST 1
 #define GR_BAD_REQUEST 2
+
+/* stuff for content-encoding: gzip
+*/
+#define COMPRESSION_NONE 0
+#define COMPRESSION_GZIP 1
+
+extern int compression_level;
+
 
 /* Parses the request in hc->read_buf.  Fills in lots of fields in hc,
 ** like the URL and the various headers.

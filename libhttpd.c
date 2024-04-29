@@ -3881,12 +3881,12 @@ really_start_request( httpd_conn* hc, struct timeval* nowP )
     char* cp;
     char* pi;
     static char *filename_with_gz = NULL;
-    static int filename_with_gz_size = 0;
+    static size_t filename_with_gz_size = 0;
     int does_exist_compressed_alternate_flag;
     struct stat alt_file_sb;
     char *content_location_string = "";
     static char *alt_header_str = (char *)NULL;
-    static int alt_header_str_size = 0;
+    static size_t alt_header_str_size = 0;
 
     expnlen = strlen( hc->expnfilename );
 

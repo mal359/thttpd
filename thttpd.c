@@ -43,9 +43,6 @@
 #ifdef HAVE_GRP_H
 #include <grp.h>
 #endif
-#ifdef USE_SENDFILE
-#include <sys/sendfile.h>
-#endif
 
 #include <signal.h>
 /* Not available with glibc default feature test macros.  Kludge to

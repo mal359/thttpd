@@ -53,6 +53,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <crypt.h>
 #include <stdarg.h>
 
 #ifdef HAVE_OSRELDATE_H

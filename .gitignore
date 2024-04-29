@@ -14,3 +14,6 @@ extras/makeweb
 mime_encodings.h
 mime_types.h
 thttpd
+*.orig
+*.rej
+*.patch

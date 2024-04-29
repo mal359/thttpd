@@ -26,7 +26,8 @@
 
 prefix =	@prefix@
 exec_prefix =	@exec_prefix@
-BINDIR =	@sbindir@
+BINDIR =	@bindir@
+SBINDIR =	@sbindir@
 WEBDIR =	$(prefix)/www
 CGIBINDIR =	$(WEBDIR)/cgi-bin
 MANDIR =	@mandir@
@@ -66,12 +67,12 @@ htpasswd.o:	htpasswd.c ../config.h
 
 
 install:	all
-	rm -f $(BINDIR)/makeweb $(BINDIR)/htpasswd $(BINDIR)/syslogtocern
+	rm -f $(SBINDIR)/makeweb $(SBINDIR)/htpasswd $(SBINDIR)/syslogtocern
 	cp makeweb $(BINDIR)/makeweb
 	chgrp $(WEBGROUP) $(BINDIR)/makeweb
 	chmod 2755 $(BINDIR)/makeweb
 	cp htpasswd $(BINDIR)/htpasswd
-	cp syslogtocern $(BINDIR)/syslogtocern
+	cp syslogtocern $(SBINDIR)/syslogtocern
 	rm -f $(MANDIR)/man1/makeweb.1
 	cp makeweb.1 $(MANDIR)/man1/makeweb.1
 	rm -f $(MANDIR)/man1/htpasswd.1

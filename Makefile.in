@@ -30,11 +30,12 @@
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 # Pathname of directory to install the binary.
-BINDIR = @sbindir@
+BINDIR = @bindir@
+SBINDIR = @sbindir@
 # Pathname of directory to install the man page.
 MANDIR = @mandir@
 # Pathname of directory to install the CGI programs.
-WEBDIR = $(prefix)/www
+WEBDIR = /srv/www/htdocs
 
 # CONFIGURE: The group that the web directory belongs to.  This is so that
 # the makeweb program can be installed set-group-id to that group, and make
@@ -110,7 +111,7 @@ install:	installthis install-man installsubdirs
 
 installthis:
 	-mkdir -p $(DESTDIR)$(BINDIR)
-	$(INSTALL) -m 555 -o bin -g bin thttpd $(DESTDIR)$(BINDIR)
+	$(INSTALL) -m 555 -o bin -g bin thttpd $(DESTDIR)$(SBINDIR)
 
 install-man:
 	-mkdir -p $(DESTDIR)$(MANDIR)/man8
@@ -121,9 +122,11 @@ installsubdirs:
 	    cd $$i ; \
 	    pwd ; \
 	    $(MAKE) $(MFLAGS) \
-		WEBDIR=$(WEBDIR) \
-		CGIBINDIR=$(CGIBINDIR) \
-		MANDIR=$(MANDIR) \
+		BINDIR=$(DESTDIR)$(BINDIR) \
+		SBINDIR=$(DESTDIR)$(SBINDIR) \
+		WEBDIR=$(DESTDIR)$(WEBDIR) \
+		CGIBINDIR=$(DESTDIR)$(CGIBINDIR) \
+		MANDIR=$(DESTDIR)$(MANDIR) \
 		WEBGROUP=$(WEBGROUP) \
 		install \
 	) ; done

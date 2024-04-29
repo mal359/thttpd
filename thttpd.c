@@ -455,11 +455,11 @@ main( int argc, char** argv )
 		/* If we are root then we chown the log file to the user we'll
 		** be switching to.
 		*/
-		if ( fchown( fileno( logfp ), uid, gid ) < 0 )
+		/*if ( fchown( fileno( logfp ), uid, gid ) < 0 )
 		    {
 		    syslog( LOG_WARNING, "fchown logfile - %m" );
 		    perror( "fchown logfile" );
-		    }
+		    }*/
 		}
 	    }
 	}

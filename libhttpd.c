@@ -2637,7 +2637,7 @@ de_dotdot( char* file )
 	{
 	for ( cp2 = cp + 2; *cp2 == '/'; ++cp2 )
 	    continue;
-	(void) ol_strcpy( cp + 1, cp2 );
+	(void) memmove(cp + 1, cp2, strlen(cp2) + 1);
 	}
 
     /* Remove leading ./ and any /./ sequences. */

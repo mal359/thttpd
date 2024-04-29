@@ -197,7 +197,8 @@ int main(int argc, char *argv[]) {
             putline(tfp,line);
             continue;
         }
-        strcpy(l,line);
+        strncpy(l,line,MAX_STRING_LEN);
+        l[MAX_STRING_LEN-1]='\0';
         getword(w,l,':');
         if(strcmp(user,w)) {
             putline(tfp,line);
@@ -215,7 +216,8 @@ int main(int argc, char *argv[]) {
     }
     fclose(f);
     fclose(tfp);
-    sprintf(command,"cp %s %s",temp_template,argv[1]);
+    snprintf(command,MAX_STRING_LEN,"cp %s %s",temp_template,argv[1]);
+    command[MAX_STRING_LEN-1]='\0';
     system(command);
     unlink(temp_template);
     exit(0);

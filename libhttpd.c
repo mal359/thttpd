@@ -47,7 +47,12 @@
 #include <memory.h>
 #endif /* HAVE_MEMORY_H */
 #include <pwd.h>
+
 #include <signal.h>
+/* Not available with glibc default feature test macros.  Kludge to
+   avoid extensive changes.  */
+extern __typeof (signal) sigset;
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

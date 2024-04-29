@@ -44,7 +44,12 @@
 #ifdef HAVE_GRP_H
 #include <grp.h>
 #endif
+
 #include <signal.h>
+/* Not available with glibc default feature test macros.  Kludge to
+   avoid extensive changes.  */
+extern __typeof (signal) sigset;
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -98,7 +98,7 @@ char *getpass(const char *prompt) {
 static char password[81];
 
 fputs(prompt,stderr);
-gets((char *)&password);
+fgets(password, sizeof(password), stdin);
 
 if (strlen((char *)&password) > 8) {
   password[8]='\0';

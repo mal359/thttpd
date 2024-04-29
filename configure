@@ -2047,7 +2047,9 @@ else
 #include <sys/types.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>

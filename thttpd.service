@@ -1,0 +1,15 @@
+[Unit]
+Description=tiny/turbo/throttling HTTP server
+Documentation=man:thttpd(8) man:ssi(8)
+ConditionPathExists=/var/www
+After=network-online.target
+Requires=network-online.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=3
+ExecStart=/usr/sbin/thttpd -sn /var/www
+
+[Install]
+WantedBy=multi-user.target

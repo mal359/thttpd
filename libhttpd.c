@@ -1059,10 +1059,12 @@ auth_check2( httpd_conn* hc, char* dirname  )
 	}
 
     /* Decode it. */
+    memset(authinfo, 0, sizeof(authinfo));
     l = b64_decode(
 	&(hc->authorization[6]), (unsigned char*) authinfo,
 	sizeof(authinfo) - 1 );
-    authinfo[l] = '\0';
+    authinfo[sizeof(authinfo)-1] = '\0';
+
     /* Split into user and password. */
     authpass = strchr( authinfo, ':' );
     if ( authpass == (char*) 0 )
